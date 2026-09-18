@@ -1,10 +1,10 @@
 # Selector Scout
 
-Selector Scout is a keyboard-driven Tampermonkey userscript for inspecting page elements without opening DevTools.
+Selector Scout is a keyboard-driven local browser extension for inspecting page elements without opening DevTools. It runs in Brave, Chrome, and other Chromium browsers.
 
 ## Controls
 
-- `⌘⌥S`: turn inspection mode on or off
+- `⌘⌥S` on macOS or `Ctrl+Shift+S` elsewhere: turn inspection mode on or off
 - Move the pointer: select the element underneath it
 - `↑`: select the parent
 - `↓`: select the first child
@@ -16,14 +16,18 @@ Selector Scout is a keyboard-driven Tampermonkey userscript for inspecting page 
 
 The floating panel shows the element name, ID, classes, and a generated CSS selector. While inspection mode is active, clicks copy selectors instead of activating the page.
 
-## Install
+## Install in Brave
 
-1. Install and enable Tampermonkey in Brave.
-2. Ask Codex to open [`selector-scout.user.js`](./selector-scout.user.js) in Tampermonkey.
-3. Codex will serve the file temporarily on localhost and open Tampermonkey's protected installer in Brave.
-4. Click **Install** or **Update** when Tampermonkey asks. Codex will stop the temporary server afterward.
+1. Open `brave://extensions`.
+2. Turn on **Developer mode**.
+3. Click **Load unpacked** and select this repository folder.
+4. Pin Selector Scout if you want a toolbar button as well as the shortcut.
 
-This workflow does not require **Allow JavaScript from Apple Events**. The broad `*://*/*` match is intentional because Selector Scout is a general inspection tool. Brave internal pages such as `brave://settings` do not allow userscripts.
+You only need to load the extension once. After changing its code, click its reload button on `brave://extensions` (or ask Codex to open that page for you). No Apple Events setting or Tampermonkey installation is needed.
+
+To change the shortcut, open `brave://extensions/shortcuts` and edit **Activate the extension** under Selector Scout. If the default shortcut conflicts with another extension, Chromium may leave it unassigned.
+
+Selector Scout requests only `activeTab` and `scripting`. It receives temporary access to the current page when you click its toolbar button or invoke its shortcut; it does not request persistent access to every website. Browser-internal pages such as `brave://settings` cannot be inspected.
 
 ## Develop
 

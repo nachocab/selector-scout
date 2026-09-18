@@ -1,14 +1,3 @@
-// ==UserScript==
-// @name         Selector Scout
-// @namespace    https://github.com/local/selector-scout
-// @version      1.0.0
-// @description  Inspect, navigate, and copy DOM selectors without opening DevTools.
-// @author       nacho
-// @match        *://*/*
-// @run-at       document-idle
-// @grant        GM_setClipboard
-// ==/UserScript==
-
 (function () {
   "use strict";
 
@@ -92,15 +81,7 @@
     return null;
   }
 
-  async function writeClipboard(text, { privilegedCopy, clipboardWrite, legacyCopy }) {
-    if (privilegedCopy) {
-      try {
-        privilegedCopy(text, "text");
-        return true;
-      } catch {
-        // Continue to browser fallbacks.
-      }
-    }
+  async function writeClipboard(text, { clipboardWrite, legacyCopy }) {
     if (clipboardWrite) {
       try {
         await clipboardWrite(text);
@@ -117,6 +98,11 @@
     return;
   }
 
+  if (globalThis.__SELECTOR_SCOUT_CONTROLLER__) {
+    globalThis.__SELECTOR_SCOUT_CONTROLLER__.toggle();
+    return;
+  }
+
   const state = {
     active: false,
     selected: null,
@@ -125,6 +111,7 @@
     outline: null,
     panel: null,
     toastTimer: null,
+    originalCursor: "",
   };
 
   function createUi() {
@@ -256,7 +243,6 @@
   function copyText(text, label) {
     if (!text) return;
     void writeClipboard(text, {
-      privilegedCopy: typeof GM_setClipboard === "function" ? GM_setClipboard : null,
       clipboardWrite: navigator.clipboard?.writeText ? (value) => navigator.clipboard.writeText(value) : null,
       legacyCopy,
     }).then((copied) => {
@@ -269,6 +255,7 @@
   function activate() {
     if (state.active) return;
     state.active = true;
+    state.originalCursor = document.documentElement.style.cursor;
     createUi();
     document.addEventListener("pointermove", onPointerMove, true);
     document.documentElement.style.cursor = "crosshair";
@@ -281,7 +268,7 @@
     state.selected = null;
     state.lastPointer = null;
     document.removeEventListener("pointermove", onPointerMove, true);
-    document.documentElement.style.cursor = "";
+    document.documentElement.style.cursor = state.originalCursor;
     if (state.rafId) cancelAnimationFrame(state.rafId);
     clearTimeout(state.toastTimer);
     removeUi();
@@ -293,12 +280,6 @@
   }
 
   function onKeyDown(event) {
-    if (event.metaKey && event.altKey && event.key.toLowerCase() === "s") {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      toggle();
-      return;
-    }
     if (!state.active) return;
 
     const direction = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" }[event.key];
@@ -340,4 +321,6 @@
   document.addEventListener("click", onClick, true);
   window.addEventListener("scroll", refreshSelection, true);
   window.addEventListener("resize", refreshSelection);
+  globalThis.__SELECTOR_SCOUT_CONTROLLER__ = { toggle };
+  activate();
 })();

@@ -5,7 +5,7 @@ const test = require("node:test");
 const vm = require("node:vm");
 
 function loadHelpers() {
-  const source = fs.readFileSync(path.join(__dirname, "..", "selector-scout.user.js"), "utf8");
+  const source = fs.readFileSync(path.join(__dirname, "..", "selector-scout.js"), "utf8");
   const context = {
     __SELECTOR_SCOUT_TEST__: true,
     CSS: { escape: (value) => value.replace(/[^a-zA-Z0-9_-]/g, (character) => `\\${character}`) },
