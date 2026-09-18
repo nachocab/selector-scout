@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Selector Scout test page</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <style>
+      body { margin: 0; padding: 48px; background: #f5f3ff; color: #211c35; font: 16px/1.5 system-ui, sans-serif; }
+      main { max-width: 760px; margin: 0 auto; }
+      .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+      .card { min-height: 150px; padding: 20px; border: 1px solid #d8d2f0; border-radius: 16px; background: white; box-shadow: 0 8px 24px rgba(46, 31, 99, .08); }
+      button { padding: 10px 14px; border: 0; border-radius: 8px; background: #6747e8; color: white; font: inherit; }
+    </style>
+  </head>
+  <body>
+    <main id="content" class="page-shell">
+      <h1>Selector Scout test page</h1>
+      <div class="cards">
+        <article id="alpha" class="card featured"><h2>Alpha</h2><button class="action primary">Choose Alpha</button></article>
+        <article id="beta" class="card"><h2>Beta</h2><button class="action secondary">Choose Beta</button></article>
+        <article id="gamma" class="card"><h2>Gamma</h2><button class="action secondary">Choose Gamma</button></article>
+      </div>
+    </main>
+    <script src="../selector-scout.user.js"></script>
+  </body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "selector-scout",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A keyboard-driven DOM selector inspector for Tampermonkey.",
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check selector-scout.user.js && node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
