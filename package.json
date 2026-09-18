@@ -4,8 +4,10 @@
   "private": true,
   "description": "A keyboard-driven DOM selector inspector for Tampermonkey.",
   "scripts": {
-    "test": "node --test",
-    "check": "node --check selector-scout.user.js && node --test"
+    "test": "npm run test:js && npm run test:python",
+    "test:js": "node --test test/*.test.js",
+    "test:python": "UV_CACHE_DIR=/tmp/uv-cache uv run python -m unittest discover -s test -p 'test_*.py'",
+    "check": "node --check selector-scout.user.js && npm test"
   },
   "engines": {
     "node": ">=20"
