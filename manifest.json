@@ -20,7 +20,7 @@
     "_execute_action": {
       "suggested_key": {
         "default": "Ctrl+Shift+S",
-        "mac": "Command+Option+S"
+        "mac": "Command+Shift+S"
       }
     }
   },

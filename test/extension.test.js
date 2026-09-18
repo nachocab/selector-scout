@@ -13,7 +13,7 @@ test("manifest uses action-scoped permissions and configurable shortcuts", () =>
   assert.deepEqual(manifest.permissions, ["activeTab", "scripting"]);
   assert.equal(manifest.host_permissions, undefined);
   assert.equal(manifest.background.service_worker, "service-worker.js");
-  assert.equal(manifest.commands._execute_action.suggested_key.mac, "Command+Option+S");
+  assert.equal(manifest.commands._execute_action.suggested_key.mac, "Command+Shift+S");
   assert.equal(manifest.commands._execute_action.suggested_key.default, "Ctrl+Shift+S");
 });
 

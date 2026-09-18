@@ -4,7 +4,7 @@ Selector Scout is a keyboard-driven local browser extension for inspecting page 
 
 ## Controls
 
-- `⌘⌥S` on macOS or `Ctrl+Shift+S` elsewhere: turn inspection mode on or off
+- `⌘⇧S` on macOS or `Ctrl+Shift+S` elsewhere: turn inspection mode on or off
 - Move the pointer: select the element underneath it
 - `↑`: select the parent
 - `↓`: select the first child
