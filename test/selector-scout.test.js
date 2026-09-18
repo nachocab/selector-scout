@@ -88,3 +88,19 @@ test("navigation skips Selector Scout interface nodes", () => {
   assert.equal(navigate(first, "right"), last);
   assert.equal(navigate(last, "left"), first);
 });
+
+test("clipboard failure falls back without leaking a rejected promise", async () => {
+  const { writeClipboard } = loadHelpers();
+  let fallbackText = "";
+
+  const copied = await writeClipboard("#gamma", {
+    clipboardWrite: () => Promise.reject(new Error("permission denied")),
+    legacyCopy: (text) => {
+      fallbackText = text;
+      return true;
+    },
+  });
+
+  assert.equal(copied, true);
+  assert.equal(fallbackText, "#gamma");
+});

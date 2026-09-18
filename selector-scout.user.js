@@ -92,8 +92,28 @@
     return null;
   }
 
+  async function writeClipboard(text, { privilegedCopy, clipboardWrite, legacyCopy }) {
+    if (privilegedCopy) {
+      try {
+        privilegedCopy(text, "text");
+        return true;
+      } catch {
+        // Continue to browser fallbacks.
+      }
+    }
+    if (clipboardWrite) {
+      try {
+        await clipboardWrite(text);
+        return true;
+      } catch {
+        // Continue to the synchronous fallback.
+      }
+    }
+    return Boolean(legacyCopy?.(text));
+  }
+
   if (globalThis.__SELECTOR_SCOUT_TEST__) {
-    globalThis.__SELECTOR_SCOUT_TEST_EXPORTS__ = { buildSelector, describeElement, navigate };
+    globalThis.__SELECTOR_SCOUT_TEST_EXPORTS__ = { buildSelector, describeElement, navigate, writeClipboard };
     return;
   }
 
@@ -220,16 +240,30 @@
     if (!state.rafId) state.rafId = requestAnimationFrame(updateFromPointer);
   }
 
+  function legacyCopy(text) {
+    const textarea = document.createElement("textarea");
+    textarea.dataset[UI_ATTRIBUTE] = "";
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    Object.assign(textarea.style, { position: "fixed", left: "-9999px", opacity: "0" });
+    document.documentElement.append(textarea);
+    textarea.select();
+    const copied = document.execCommand("copy");
+    textarea.remove();
+    return copied;
+  }
+
   function copyText(text, label) {
     if (!text) return;
-    if (typeof GM_setClipboard === "function") {
-      GM_setClipboard(text, "text");
-    } else {
-      navigator.clipboard?.writeText(text);
-    }
-    renderPanel(`${label}: ${text}`);
-    clearTimeout(state.toastTimer);
-    state.toastTimer = setTimeout(() => renderPanel(), 1500);
+    void writeClipboard(text, {
+      privilegedCopy: typeof GM_setClipboard === "function" ? GM_setClipboard : null,
+      clipboardWrite: navigator.clipboard?.writeText ? (value) => navigator.clipboard.writeText(value) : null,
+      legacyCopy,
+    }).then((copied) => {
+      renderPanel(copied ? `${label}: ${text}` : "Clipboard access was blocked");
+      clearTimeout(state.toastTimer);
+      state.toastTimer = setTimeout(() => renderPanel(), 1500);
+    });
   }
 
   function activate() {
