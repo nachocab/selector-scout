@@ -5,16 +5,16 @@ Selector Scout is a keyboard-driven local browser extension for inspecting page 
 ## Controls
 
 - `⌘⇧S` on macOS or `Ctrl+Shift+S` elsewhere: turn inspection mode on or off
-- Move the pointer: select the element underneath it
+- Move the pointer: preview the element underneath it until a selection is pinned
 - `↑`: select the parent
 - `↓`: select the first child
 - `←` / `→`: select the previous or next sibling
-- `Enter` or click: copy the generated CSS selector
+- `Enter` or click: copy the generated CSS selector and pin that element; click another page element to select it instead
 - `I`: copy the selected element ID, including `#`
 - `C`: copy all classes as a compact CSS class selector
 - `Esc`: leave inspection mode
 
-The floating panel shows the element name, ID, classes, and a generated CSS selector. While inspection mode is active, clicks copy selectors instead of activating the page.
+The floating panel shows the element name, ID, classes, generated CSS selector, computed text and background colors, padding, margin, and line height. You can select and copy text directly from the panel. While inspection mode is active, clicks on page elements copy selectors instead of activating the page.
 
 ## Install in Brave
 

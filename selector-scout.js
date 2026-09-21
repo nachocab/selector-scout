@@ -106,11 +106,13 @@
   const state = {
     active: false,
     selected: null,
+    locked: false,
     rafId: null,
     lastPointer: null,
     outline: null,
     panel: null,
     toastTimer: null,
+    toastLine: null,
     originalCursor: "",
   };
 
@@ -139,6 +141,7 @@
       bottom: "20px",
       transform: "translateX(-50%)",
       width: "min(720px, calc(100vw - 32px))",
+      boxSizing: "border-box",
       padding: "12px 14px",
       border: "1px solid rgba(255,255,255,.16)",
       borderRadius: "12px",
@@ -148,7 +151,9 @@
       font: "13px/1.45 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
       letterSpacing: "normal",
       textAlign: "left",
-      pointerEvents: "none",
+      pointerEvents: "auto",
+      userSelect: "text",
+      cursor: "text",
       zIndex: "2147483647",
     });
 
@@ -180,9 +185,20 @@
     return row;
   }
 
-  function renderPanel(message = "") {
+  function boxValues(style, property) {
+    const values = ["Top", "Right", "Bottom", "Left"].map((side) => style[`${property}${side}`]);
+    if (values.every((value) => value === values[0])) return values[0];
+    if (values[0] === values[2] && values[1] === values[3]) return `${values[0]} ${values[1]}`;
+    if (values[1] === values[3]) return `${values[0]} ${values[1]} ${values[2]}`;
+    return values.join(" ");
+  }
+
+  function renderPanel() {
     if (!state.panel) return;
+    clearTimeout(state.toastTimer);
+    state.toastTimer = null;
     state.panel.replaceChildren();
+    state.toastLine = null;
     if (!state.selected) {
       state.panel.append(panelLine("SCOUT", "Move the pointer over an element"));
       return;
@@ -191,14 +207,19 @@
     const selector = buildSelector(state.selected);
     const id = state.selected.id ? `#${state.selected.id}` : "—";
     const classes = Array.from(state.selected.classList, (name) => `.${name}`).join(" ") || "—";
+    const style = getComputedStyle(state.selected);
     state.panel.append(
       panelLine("ELEMENT", describeElement(state.selected), "#ffffff"),
       panelLine("SELECTOR", selector),
       panelLine("ID", id),
       panelLine("CLASSES", classes),
+      panelLine("COLOR", style.color),
+      panelLine("BACKGROUND", style.backgroundColor),
+      panelLine("PADDING", boxValues(style, "padding")),
+      panelLine("MARGIN", boxValues(style, "margin")),
+      panelLine("LINE HEIGHT", style.lineHeight),
       panelLine("KEYS", "↑ parent  ↓ child  ←/→ sibling  Enter/click selector  I id  C classes  Esc exit", "#a8a2b8"),
     );
-    if (message) state.panel.append(panelLine("COPIED", message, "#78e6a5"));
   }
 
   function select(element) {
@@ -217,12 +238,13 @@
 
   function updateFromPointer() {
     state.rafId = null;
-    if (!state.active || !state.lastPointer) return;
+    if (!state.active || state.locked || !state.lastPointer) return;
     const { clientX, clientY } = state.lastPointer;
     select(document.elementFromPoint(clientX, clientY));
   }
 
   function onPointerMove(event) {
+    if (state.locked || isOwned(event.target)) return;
     state.lastPointer = event;
     if (!state.rafId) state.rafId = requestAnimationFrame(updateFromPointer);
   }
@@ -246,9 +268,15 @@
       clipboardWrite: navigator.clipboard?.writeText ? (value) => navigator.clipboard.writeText(value) : null,
       legacyCopy,
     }).then((copied) => {
-      renderPanel(copied ? `${label}: ${text}` : "Clipboard access was blocked");
+      if (!state.panel) return;
       clearTimeout(state.toastTimer);
-      state.toastTimer = setTimeout(() => renderPanel(), 1500);
+      state.toastLine?.remove();
+      state.toastLine = panelLine("COPIED", copied ? `${label}: ${text}` : "Clipboard access was blocked", "#78e6a5");
+      state.panel.append(state.toastLine);
+      state.toastTimer = setTimeout(() => {
+        state.toastLine?.remove();
+        state.toastLine = null;
+      }, 1500);
     });
   }
 
@@ -266,6 +294,7 @@
     if (!state.active) return;
     state.active = false;
     state.selected = null;
+    state.locked = false;
     state.lastPointer = null;
     document.removeEventListener("pointermove", onPointerMove, true);
     document.documentElement.style.cursor = state.originalCursor;
@@ -281,33 +310,45 @@
 
   function onKeyDown(event) {
     if (!state.active) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      deactivate();
+      return;
+    }
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
 
     const direction = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" }[event.key];
     if (direction) {
       event.preventDefault();
       event.stopImmediatePropagation();
       const next = navigate(state.selected, direction);
-      if (next) select(next);
+      if (next) {
+        select(next);
+        state.locked = true;
+      }
       return;
     }
 
-    if (event.key === "Escape") {
+    if (event.key === "Enter" && state.selected) {
       event.preventDefault();
-      deactivate();
-    } else if (event.key === "Enter" && state.selected) {
-      event.preventDefault();
+      state.locked = true;
       copyText(buildSelector(state.selected), "selector");
     } else if (event.key.toLowerCase() === "i" && state.selected) {
       event.preventDefault();
+      state.locked = true;
       copyText(state.selected.id ? `#${state.selected.id}` : "", "id");
     } else if (event.key.toLowerCase() === "c" && state.selected) {
       event.preventDefault();
+      state.locked = true;
       copyText(Array.from(state.selected.classList, (name) => `.${name}`).join(""), "classes");
     }
   }
 
   function onClick(event) {
-    if (!state.active || !state.selected) return;
+    if (!state.active || !event.target?.tagName || isOwned(event.target)) return;
+    select(event.target);
+    state.locked = true;
     event.preventDefault();
     event.stopImmediatePropagation();
     copyText(buildSelector(state.selected), "selector");
