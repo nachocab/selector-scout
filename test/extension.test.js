@@ -10,7 +10,7 @@ test("manifest uses action-scoped permissions and configurable shortcuts", () =>
   const manifest = JSON.parse(fs.readFileSync(path.join(root, "manifest.json"), "utf8"));
 
   assert.equal(manifest.manifest_version, 3);
-  assert.deepEqual(manifest.permissions, ["activeTab", "scripting"]);
+  assert.deepEqual(manifest.permissions, ["activeTab", "scripting", "storage"]);
   assert.equal(manifest.host_permissions, undefined);
   assert.equal(manifest.background.service_worker, "service-worker.js");
   assert.equal(manifest.commands._execute_action.suggested_key.mac, "Command+Shift+S");

@@ -3,7 +3,7 @@
   "name": "Selector Scout",
   "version": "1.0.0",
   "description": "Inspect, navigate, and copy DOM selectors without opening DevTools.",
-  "permissions": ["activeTab", "scripting"],
+  "permissions": ["activeTab", "scripting", "storage"],
   "background": {
     "service_worker": "service-worker.js"
   },

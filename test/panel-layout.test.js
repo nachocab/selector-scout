@@ -32,7 +32,29 @@ function node() {
   };
 }
 
-function loadScout() {
+// Stands in for chrome.storage.local, recording every layout written to it.
+function fakeStorage(stored) {
+  const data = stored === undefined ? {} : { selectorScoutPanel: stored };
+  const writes = [];
+  return {
+    writes,
+    storage: {
+      local: {
+        get: async (key) => (key in data ? { [key]: data[key] } : {}),
+        set: async (entry) => {
+          Object.assign(data, entry);
+          writes.push(entry.selectorScoutPanel);
+        },
+      },
+    },
+  };
+}
+
+function settle() {
+  return new Promise(setImmediate);
+}
+
+function loadScout({ chrome, localStorage } = {}) {
   const listeners = new Map();
   const frames = [];
   const target = {
@@ -56,6 +78,8 @@ function loadScout() {
   const context = {
     document,
     window,
+    chrome,
+    localStorage,
     getComputedStyle: () => ({ color: "rgb(0, 0, 0)", backgroundColor: "rgb(255, 255, 255)", lineHeight: "normal" }),
     requestAnimationFrame: (callback) => frames.push(callback),
     cancelAnimationFrame() {},
@@ -183,6 +207,81 @@ test("a resized panel keeps a usable minimum and refits a shrunken viewport", ()
 
   assert.equal(panel().style.left, "0px");
   assert.equal(panel().style.width, "620px");
+});
+
+test("a finished gesture stores the panel layout", async () => {
+  const { writes, storage } = fakeStorage();
+  const { listeners, grip, resizeHandle } = loadScout({ chrome: { storage } });
+  await settle();
+
+  // The panel is built in another realm, so compare plain copies rather than its objects.
+  const stored = () => JSON.parse(JSON.stringify(writes));
+
+  pointerDown(listeners, grip, 320, 700);
+  pointerMove(listeners, grip, 120, 200);
+  assert.deepEqual(stored(), [], "an in-flight drag is not stored");
+  listeners.get("pointerup")({ pointerId: 1 });
+  assert.deepEqual(stored(), [{ offset: { left: 100, top: 190 }, size: null }]);
+
+  pointerDown(listeners, resizeHandle, 700, 790);
+  pointerMove(listeners, resizeHandle, 740, 810);
+  listeners.get("pointerup")({ pointerId: 1 });
+
+  assert.deepEqual(stored().at(-1), { offset: { left: 100, top: 190 }, size: { width: 440, height: 120 } });
+});
+
+test("a stored layout is restored on load and re-clamped to the viewport", async () => {
+  const { storage } = fakeStorage({ offset: { left: 40, top: 60 }, size: { width: 500, height: 150 } });
+  const { panel } = loadScout({ chrome: { storage } });
+
+  assert.equal(panel().style.left, "50%", "the panel opens at its default spot while storage is read");
+  await settle();
+
+  assert.equal(panel().style.left, "40px");
+  assert.equal(panel().style.top, "60px");
+  assert.equal(panel().style.width, "500px");
+  assert.equal(panel().style.height, "150px");
+});
+
+test("a stored layout never overrides a gesture that lands while storage is read", async () => {
+  const { storage } = fakeStorage({ offset: { left: 40, top: 60 }, size: { width: 500, height: 150 } });
+  const { listeners, panel, grip } = loadScout({ chrome: { storage } });
+
+  pointerDown(listeners, grip, 320, 700);
+  pointerMove(listeners, grip, 120, 200);
+  listeners.get("pointerup")({ pointerId: 1 });
+  await settle();
+
+  assert.equal(panel().style.left, "100px");
+  assert.equal(panel().style.top, "190px");
+});
+
+test("an unusable stored layout is ignored", async () => {
+  const { storage } = fakeStorage({ offset: { left: "nope", top: 60 }, size: { width: 500, height: null } });
+  const { panel } = loadScout({ chrome: { storage } });
+  await settle();
+
+  assert.equal(panel().style.left, "50%");
+  assert.equal(panel().style.height, undefined);
+});
+
+test("localStorage carries the layout when the extension storage API is absent", async () => {
+  const entries = new Map([["selectorScoutPanel", JSON.stringify({ offset: { left: 12, top: 34 }, size: { width: 300, height: 90 } })]]);
+  const localStorage = {
+    getItem: (key) => entries.get(key) ?? null,
+    setItem: (key, value) => entries.set(key, value),
+  };
+  const { listeners, panel, grip } = loadScout({ localStorage });
+  await settle();
+
+  assert.equal(panel().style.left, "12px");
+  assert.equal(panel().style.width, "300px");
+
+  pointerDown(listeners, grip, 32, 44);
+  pointerMove(listeners, grip, 132, 144);
+  listeners.get("pointerup")({ pointerId: 1 });
+
+  assert.deepEqual(JSON.parse(entries.get("selectorScoutPanel")).offset, { left: 112, top: 134 });
 });
 
 test("the panel keeps its position and size across a toggle", () => {

@@ -18,7 +18,7 @@ Selector Scout is a keyboard-driven local browser extension for inspecting page 
 
 The floating panel shows the element name, ID, classes, generated CSS selector, computed text and background colors, padding, margin, and line height. Each color is drawn as a swatch next to its hex value, over a checkerboard so translucent colors read as translucent. You can select and copy text directly from the panel. While inspection mode is active, clicks on page elements copy selectors instead of activating the page.
 
-The panel starts at the bottom of the viewport. Drag it anywhere to uncover content it overlaps, and drag its bottom-right corner to resize it down to 220×72 pixels; the rows scroll once the panel is shorter than its content. Resizing holds the top-left corner still, and both gestures keep the panel inside the viewport, including across a window resize. The panel keeps its position and size until the page reloads. Row values remain selectable text, so only the grab bar, the labels, and the panel padding start a drag.
+The panel starts at the bottom of the viewport. Drag it anywhere to uncover content it overlaps, and drag its bottom-right corner to resize it down to 220×72 pixels; the rows scroll once the panel is shorter than its content. Resizing holds the top-left corner still, and both gestures keep the panel inside the viewport, including across a window resize. The panel remembers its position and size, in extension storage shared by every site, and restores them on the next page. A viewport too small for the remembered layout shrinks the panel to fit without replacing what is stored, so the layout returns on a larger window. Row values remain selectable text, so only the grab bar, the labels, and the panel padding start a drag.
 
 ## Install in Brave
 
@@ -31,7 +31,7 @@ You only need to load the extension once. After changing its code, click its rel
 
 To change the shortcut, open `brave://extensions/shortcuts` and edit **Activate the extension** under Selector Scout. If the default shortcut conflicts with another extension, Chromium may leave it unassigned.
 
-Selector Scout requests only `activeTab` and `scripting`. It receives temporary access to the current page when you click its toolbar button or invoke its shortcut; it does not request persistent access to every website. Browser-internal pages such as `brave://settings` cannot be inspected.
+Selector Scout requests only `activeTab`, `scripting`, and `storage`. It receives temporary access to the current page when you click its toolbar button or invoke its shortcut; it does not request persistent access to every website. The `storage` permission holds nothing but the panel's remembered position and size. Browser-internal pages such as `brave://settings` cannot be inspected.
 
 ## Develop
 

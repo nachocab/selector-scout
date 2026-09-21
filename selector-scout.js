@@ -5,6 +5,7 @@
   const DRAG_ATTRIBUTE = "selectorScoutDrag";
   const MIN_PANEL_WIDTH = 220;
   const MIN_PANEL_HEIGHT = 72;
+  const LAYOUT_KEY = "selectorScoutPanel";
 
   function escapeCss(value) {
     if (globalThis.CSS?.escape) return globalThis.CSS.escape(value);
@@ -103,6 +104,40 @@
 
   function clamp(value, min, max) {
     return Math.min(Math.max(value, min), Math.max(min, max));
+  }
+
+  // chrome.storage carries the panel layout between page loads and across sites; a page's own
+  // localStorage is the fallback for the fixture and any other plain-script injection.
+  function layoutStore() {
+    return globalThis.chrome?.storage?.local ?? null;
+  }
+
+  async function loadLayout() {
+    try {
+      const store = layoutStore();
+      if (store) return (await store.get(LAYOUT_KEY))?.[LAYOUT_KEY] ?? null;
+      const raw = globalThis.localStorage?.getItem(LAYOUT_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function saveLayout(layout) {
+    try {
+      const store = layoutStore();
+      if (store) {
+        void Promise.resolve(store.set({ [LAYOUT_KEY]: layout })).catch(() => {});
+        return;
+      }
+      globalThis.localStorage?.setItem(LAYOUT_KEY, JSON.stringify(layout));
+    } catch {
+      // A remembered layout is a convenience, so blocked storage is not worth reporting.
+    }
+  }
+
+  function finiteBox(box, keys) {
+    return box && keys.every((key) => Number.isFinite(box[key])) ? box : null;
   }
 
   async function writeClipboard(text, { clipboardWrite, legacyCopy }) {
@@ -244,6 +279,11 @@
     state.grip = grip;
     state.body = body;
     state.resizeHandle = resizeHandle;
+    applyLayout();
+  }
+
+  // Position first: the size clamp measures the space left from the panel's own left and top edges.
+  function applyLayout() {
     if (state.panelOffset) movePanel(state.panelOffset.left, state.panelOffset.top);
     if (state.panelSize) resizePanel(state.panelSize.width, state.panelSize.height);
   }
@@ -416,6 +456,7 @@
     state.drag = null;
     state.resize = null;
     if (state.grip) state.grip.style.cursor = "grab";
+    saveLayout({ offset: state.panelOffset, size: state.panelSize });
   }
 
   function onPointerMove(event) {
@@ -553,9 +594,9 @@
   }
 
   function onResize() {
-    // Re-clamp so a moved or resized panel cannot end up outside a shrunken viewport.
-    if (state.panelOffset) movePanel(state.panelOffset.left, state.panelOffset.top);
-    if (state.panelSize) resizePanel(state.panelSize.width, state.panelSize.height);
+    // Re-clamp so a moved or resized panel cannot end up outside a shrunken viewport. Only a
+    // gesture saves a layout, so a viewport-driven fit never overwrites the remembered one.
+    applyLayout();
     refreshSelection();
   }
 
@@ -565,4 +606,12 @@
   window.addEventListener("resize", onResize);
   globalThis.__SELECTOR_SCOUT_CONTROLLER__ = { toggle };
   activate();
+
+  void loadLayout().then((layout) => {
+    // Reading storage is asynchronous, so a gesture that lands first wins over the stored layout.
+    if (!layout || state.panelOffset || state.panelSize) return;
+    state.panelOffset = finiteBox(layout.offset, ["left", "top"]);
+    state.panelSize = finiteBox(layout.size, ["width", "height"]);
+    applyLayout();
+  });
 })();
