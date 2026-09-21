@@ -13,8 +13,12 @@ Selector Scout is a keyboard-driven local browser extension for inspecting page 
 - `I`: copy the selected element ID, including `#`
 - `C`: copy all classes as a compact CSS class selector
 - `Esc`: leave inspection mode
+- Drag the panel's grab bar, a row label, or its padding: move the panel out of the way
+- Drag the panel's bottom-right corner: resize it
 
-The floating panel shows the element name, ID, classes, generated CSS selector, computed text and background colors, padding, margin, and line height. You can select and copy text directly from the panel. While inspection mode is active, clicks on page elements copy selectors instead of activating the page.
+The floating panel shows the element name, ID, classes, generated CSS selector, computed text and background colors, padding, margin, and line height. Each color is drawn as a swatch next to its hex value, over a checkerboard so translucent colors read as translucent. You can select and copy text directly from the panel. While inspection mode is active, clicks on page elements copy selectors instead of activating the page.
+
+The panel starts at the bottom of the viewport. Drag it anywhere to uncover content it overlaps, and drag its bottom-right corner to resize it down to 220×72 pixels; the rows scroll once the panel is shorter than its content. Resizing holds the top-left corner still, and both gestures keep the panel inside the viewport, including across a window resize. The panel keeps its position and size until the page reloads. Row values remain selectable text, so only the grab bar, the labels, and the panel padding start a drag.
 
 ## Install in Brave
 
