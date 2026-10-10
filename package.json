@@ -5,6 +5,7 @@
   "description": "A keyboard-driven DOM selector inspector for Chromium browsers.",
   "scripts": {
     "test": "node --test",
+    "test:browser": "node scripts/check-modal-layer.cjs",
     "check": "node --check selector-scout.js && node --check service-worker.js && node --test"
   },
   "engines": {

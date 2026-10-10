@@ -20,6 +20,8 @@ The floating panel shows the element name, ID, classes, generated CSS selector, 
 
 The panel starts at the bottom of the viewport. Drag it anywhere to uncover content it overlaps, and drag its bottom-right corner to resize it down to 220×72 pixels; the rows scroll once the panel is shorter than its content. Resizing holds the top-left corner still, and both gestures keep the panel inside the viewport, including across a window resize. The panel remembers its position and size, in extension storage shared by every site, and restores them on the next page. A viewport too small for the remembered layout shrinks the panel to fit without replacing what is stored, so the layout returns on a larger window. Row values remain selectable text, so only the grab bar, the labels, and the panel padding start a drag.
 
+The panel and selection outline stay above native modal dialogs and page popovers. The panel remains draggable, resizable, and selectable while a modal is open, and follows the active dialog as dialogs open or close.
+
 ## Install in Brave
 
 1. Open `brave://extensions`.
@@ -36,3 +38,5 @@ Selector Scout requests only `activeTab`, `scripting`, and `storage`. It receive
 ## Develop
 
 Run `npm test` for focused logic tests or `npm run check` for syntax validation plus the full test suite. The fixture in [`fixture/index.html`](./fixture/index.html) supports browser-level verification.
+
+Run `npm run test:browser` for headless modal and overlay regression checks. This uses the Codex Playwright CLI wrapper at `~/.codex/skills/playwright/scripts/playwright_cli.sh`; set `PWCLI` to use another Playwright CLI executable. Use a headless Chromium configuration. On macOS, run this browser check with host permissions. Each run creates and closes its own disposable browser session.

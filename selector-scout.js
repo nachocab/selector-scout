@@ -180,6 +180,7 @@
     toastTimer: null,
     toastLine: null,
     originalCursor: "",
+    modalObserver: null,
   };
 
   function createUi() {
@@ -188,6 +189,9 @@
     outline.setAttribute("aria-hidden", "true");
     Object.assign(outline.style, {
       position: "fixed",
+      inset: "auto",
+      margin: "0",
+      padding: "0",
       display: "none",
       pointerEvents: "none",
       boxSizing: "border-box",
@@ -203,6 +207,8 @@
     panel.setAttribute("aria-live", "polite");
     Object.assign(panel.style, {
       position: "fixed",
+      inset: "auto",
+      margin: "0",
       left: "50%",
       bottom: "20px",
       transform: "translateX(-50%)",
@@ -279,7 +285,53 @@
     state.grip = grip;
     state.body = body;
     state.resizeHandle = resizeHandle;
+    syncTopLayer();
     applyLayout();
+  }
+
+  function syncTopLayer(raise = false) {
+    if (!state.active || !state.panel?.showPopover) return;
+    // A z-index cannot cross the browser's top layer. Popovers can, but must also
+    // belong to the active modal so its inertness does not disable panel gestures.
+    const modals = Array.from(document.querySelectorAll("dialog:modal"));
+    const focusedModal = document.activeElement?.closest?.("dialog:modal");
+    const parent = focusedModal ?? modals.at(-1) ?? document.documentElement;
+    for (const element of [state.outline, state.panel]) {
+      element.setAttribute("popover", "manual");
+      const moved = element.parentElement !== parent;
+      if (moved || raise) element.hidePopover();
+      if (moved) parent.append(element);
+      if (!element.matches(":popover-open")) element.showPopover();
+    }
+  }
+
+  function onTopLayerToggle(event) {
+    if (!isOwned(event.target) && event.newState === "open") syncTopLayer(true);
+  }
+
+  function observeModals() {
+    if (!state.panel?.showPopover || !globalThis.MutationObserver) return;
+    state.modalObserver = new MutationObserver((mutations) => {
+      const changedModal = mutations.some((mutation) => {
+        if (mutation.type === "attributes") return mutation.target.tagName === "DIALOG";
+        return [...mutation.addedNodes, ...mutation.removedNodes].some((node) =>
+          !isOwned(node) && (node.tagName === "DIALOG" || node.querySelector?.("dialog"))
+        );
+      });
+      if (changedModal) syncTopLayer();
+    });
+    state.modalObserver.observe(document.documentElement, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["open"],
+    });
+    document.addEventListener("toggle", onTopLayerToggle, true);
+    document.addEventListener("focusin", syncTopLayerOnFocus, true);
+  }
+
+  function syncTopLayerOnFocus(event) {
+    if (!isOwned(event.target)) syncTopLayer();
   }
 
   // Position first: the size clamp measures the space left from the panel's own left and top edges.
@@ -512,6 +564,7 @@
     state.active = true;
     state.originalCursor = document.documentElement.style.cursor;
     createUi();
+    observeModals();
     document.addEventListener("pointermove", onPointerMove, true);
     document.addEventListener("pointerdown", onPointerDown, true);
     document.addEventListener("pointerup", onPointerUp, true);
@@ -528,6 +581,10 @@
     state.lastPointer = null;
     state.drag = null;
     state.resize = null;
+    state.modalObserver?.disconnect();
+    state.modalObserver = null;
+    document.removeEventListener("toggle", onTopLayerToggle, true);
+    document.removeEventListener("focusin", syncTopLayerOnFocus, true);
     document.removeEventListener("pointermove", onPointerMove, true);
     document.removeEventListener("pointerdown", onPointerDown, true);
     document.removeEventListener("pointerup", onPointerUp, true);
