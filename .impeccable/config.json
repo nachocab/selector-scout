@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "layout-transition",
+        "value": "*",
+        "files": [
+          "selector-scout.js"
+        ],
+        "createdAt": "2026-10-03T07:53:32.211Z",
+        "reason": "Agent: existing 60ms motion follows the inspected element's bounding rectangle; this fixed-position, pointer-transparent outline intentionally animates its geometry without moving page content."
+      }
+    ]
+  }
+}

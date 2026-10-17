@@ -2,3 +2,5 @@ node_modules/
 output/
 .playwright-cli/
 .DS_Store
+
+.impeccable/hook.cache.json
