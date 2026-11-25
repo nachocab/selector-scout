@@ -10,6 +10,7 @@ test("Escape exits selection mode without reaching the page, even with modifiers
     const root = { style: { cursor: "" }, append() {} };
     const document = {
       documentElement: root,
+      querySelectorAll: () => [],
       createElement: () => ({ dataset: {}, style: {}, setAttribute() {}, append() {}, replaceChildren() {}, remove() {} }),
       addEventListener: (name, listener) => listeners.set(name, listener),
       removeEventListener() {},

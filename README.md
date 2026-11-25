@@ -20,6 +20,8 @@ The floating panel shows the element name, ID, classes, generated CSS selector, 
 
 The panel starts at the bottom of the viewport. Drag it anywhere to uncover content it overlaps, and drag its bottom-right corner to resize it down to 220×72 pixels; the rows scroll once the panel is shorter than its content. Resizing holds the top-left corner still, and both gestures keep the panel inside the viewport, including across a window resize. The panel remembers its position and size, in extension storage shared by every site, and restores them on the next page. A viewport too small for the remembered layout shrinks the panel to fit without replacing what is stored, so the layout returns on a larger window. Row values remain selectable text, so only the grab bar, the labels, and the panel padding start a drag.
 
+Inspection reaches into same-origin iframes and frames, nested ones included, and follows them as they load new pages, so apps that render their content in a frame inspect like any other page. A FRAME row names the frames holding the selected element, because the generated selector matches only within that frame's document. `↑` from a frame's root element selects the frame element itself, and `↓` on a frame element enters its body. The browser keeps cross-origin frames out of reach, so hovering one selects nothing.
+
 The panel and selection outline stay above native modal dialogs and page popovers. The panel remains draggable, resizable, and selectable while a modal is open, and follows the active dialog as dialogs open or close.
 
 ## Install in Brave

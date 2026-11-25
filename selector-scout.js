@@ -6,6 +6,7 @@
   const MIN_PANEL_WIDTH = 220;
   const MIN_PANEL_HEIGHT = 72;
   const LAYOUT_KEY = "selectorScoutPanel";
+  const FRAME_SELECTOR = "iframe, frame";
 
   function escapeCss(value) {
     if (globalThis.CSS?.escape) return globalThis.CSS.escape(value);
@@ -181,6 +182,8 @@
     toastLine: null,
     originalCursor: "",
     modalObserver: null,
+    // Same-origin frame documents carrying Scout's listeners, each mapped to its original cursor.
+    frames: new Map(),
   };
 
   function createUi() {
@@ -410,12 +413,16 @@
       return;
     }
 
-    const selector = buildSelector(state.selected);
+    const selector = selectorFor(state.selected);
     const id = state.selected.id ? `#${state.selected.id}` : "—";
     const classes = Array.from(state.selected.classList, (name) => `.${name}`).join(" ") || "—";
-    const style = getComputedStyle(state.selected);
+    const view = state.selected.ownerDocument?.defaultView;
+    const style = view && view !== window ? view.getComputedStyle(state.selected) : getComputedStyle(state.selected);
+    // A selector only matches within its own document, so name the frames that hold it.
+    const frames = frameChain(state.selected).map(selectorFor);
     state.body.append(
       panelLine("ELEMENT", describeElement(state.selected), { color: "#ffffff" }),
+      ...(frames.length ? [panelLine("FRAME", frames.join(" → "))] : []),
       panelLine("SELECTOR", selector),
       panelLine("ID", id),
       panelLine("CLASSES", classes),
@@ -432,10 +439,104 @@
     );
   }
 
+  // A cross-origin frame yields no document, and the browser keeps its events from the page.
+  function frameDocument(frame) {
+    try {
+      return frame.contentDocument ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  // The frame element hosting a document, or null for the top document and cross-origin parents.
+  function hostFrame(element) {
+    const view = element?.ownerDocument?.defaultView;
+    if (!view || view === window) return null;
+    try {
+      return view.frameElement ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  function frameChain(element) {
+    const chain = [];
+    for (let frame = hostFrame(element); frame; frame = hostFrame(frame)) chain.unshift(frame);
+    return chain;
+  }
+
+  // Frame content is laid out in the frame's own viewport, so each hosting frame's content box
+  // offsets it within the top viewport, where the outline is drawn.
+  function viewportRect(element) {
+    const rect = element.getBoundingClientRect();
+    let { left, top } = rect;
+    for (let frame = hostFrame(element); frame; frame = hostFrame(frame)) {
+      const frameRect = frame.getBoundingClientRect();
+      const style = frame.ownerDocument.defaultView.getComputedStyle(frame);
+      left += frameRect.left + frame.clientLeft + Number.parseFloat(style.paddingLeft || "0");
+      top += frameRect.top + frame.clientTop + Number.parseFloat(style.paddingTop || "0");
+    }
+    return { left, top, width: rect.width, height: rect.height };
+  }
+
+  function selectorFor(element) {
+    return buildSelector(element, element.ownerDocument ?? document);
+  }
+
+  function attachFrames(rootDocument) {
+    for (const frame of rootDocument.querySelectorAll(FRAME_SELECTOR)) attachFrame(frame);
+  }
+
+  function attachFrame(frame) {
+    const frameDoc = frameDocument(frame);
+    const view = frameDoc?.defaultView;
+    if (!view || state.frames.has(frameDoc)) return;
+    // A navigated frame leaves its old document behind, so drop the ones no longer shown.
+    for (const known of state.frames.keys()) if (!known.defaultView) state.frames.delete(known);
+    state.frames.set(frameDoc, frameDoc.documentElement?.style.cursor ?? "");
+    frameDoc.addEventListener("pointermove", onPointerMove, true);
+    frameDoc.addEventListener("keydown", onKeyDown, true);
+    frameDoc.addEventListener("click", onClick, true);
+    frameDoc.addEventListener("load", onFrameLoad, true);
+    view.addEventListener("scroll", refreshSelection, true);
+    if (frameDoc.documentElement) frameDoc.documentElement.style.cursor = "crosshair";
+    attachFrames(frameDoc);
+  }
+
+  function detachFrames() {
+    for (const [frameDoc, cursor] of state.frames) {
+      frameDoc.removeEventListener("pointermove", onPointerMove, true);
+      frameDoc.removeEventListener("keydown", onKeyDown, true);
+      frameDoc.removeEventListener("click", onClick, true);
+      frameDoc.removeEventListener("load", onFrameLoad, true);
+      frameDoc.defaultView?.removeEventListener("scroll", refreshSelection, true);
+      if (frameDoc.documentElement) frameDoc.documentElement.style.cursor = cursor;
+    }
+    state.frames.clear();
+  }
+
+  // Load does not bubble, but a capturing listener still sees it as a frame finishes (re)loading.
+  function onFrameLoad(event) {
+    if (event.target?.matches?.(FRAME_SELECTOR)) attachFrame(event.target);
+  }
+
+  // Arrow keys cross frame boundaries: up from a frame's root reaches the hosting frame element,
+  // and down from a frame element enters its document.
+  function navigateAcross(element, direction) {
+    const next = navigate(element, direction);
+    if (next || !element) return next;
+    if (direction === "up") return hostFrame(element);
+    if (direction === "down" && element.matches?.(FRAME_SELECTOR)) {
+      const frameDoc = frameDocument(element);
+      return frameDoc?.body ?? frameDoc?.documentElement ?? null;
+    }
+    return null;
+  }
+
   function select(element) {
     if (!element || isOwned(element) || !state.active) return;
     state.selected = element;
-    const rect = element.getBoundingClientRect();
+    const rect = viewportRect(element);
     Object.assign(state.outline.style, {
       display: "block",
       left: `${rect.left}px`,
@@ -449,8 +550,8 @@
   function updateFromPointer() {
     state.rafId = null;
     if (!state.active || state.locked || !state.lastPointer) return;
-    const { clientX, clientY } = state.lastPointer;
-    select(document.elementFromPoint(clientX, clientY));
+    const { clientX, clientY, pointerDocument } = state.lastPointer;
+    select(pointerDocument.elementFromPoint(clientX, clientY));
   }
 
   function movePanel(left, top) {
@@ -524,7 +625,9 @@
       return;
     }
     if (state.locked || isOwned(event.target)) return;
-    state.lastPointer = event;
+    // Coordinates are relative to the viewport of the document that received the event.
+    const pointerDocument = event.target?.ownerDocument ?? document;
+    state.lastPointer = { clientX: event.clientX, clientY: event.clientY, pointerDocument };
     if (!state.rafId) state.rafId = requestAnimationFrame(updateFromPointer);
   }
 
@@ -569,7 +672,9 @@
     document.addEventListener("pointerdown", onPointerDown, true);
     document.addEventListener("pointerup", onPointerUp, true);
     document.addEventListener("pointercancel", onPointerUp, true);
+    document.addEventListener("load", onFrameLoad, true);
     document.documentElement.style.cursor = "crosshair";
+    attachFrames(document);
     renderPanel();
   }
 
@@ -589,8 +694,11 @@
     document.removeEventListener("pointerdown", onPointerDown, true);
     document.removeEventListener("pointerup", onPointerUp, true);
     document.removeEventListener("pointercancel", onPointerUp, true);
+    document.removeEventListener("load", onFrameLoad, true);
+    detachFrames();
     document.documentElement.style.cursor = state.originalCursor;
     if (state.rafId) cancelAnimationFrame(state.rafId);
+    state.rafId = null;
     clearTimeout(state.toastTimer);
     removeUi();
   }
@@ -614,7 +722,7 @@
     if (direction) {
       event.preventDefault();
       event.stopImmediatePropagation();
-      const next = navigate(state.selected, direction);
+      const next = navigateAcross(state.selected, direction);
       if (next) {
         select(next);
         state.locked = true;
@@ -625,7 +733,7 @@
     if (event.key === "Enter" && state.selected) {
       event.preventDefault();
       state.locked = true;
-      copyText(buildSelector(state.selected), "selector");
+      copyText(selectorFor(state.selected), "selector");
     } else if (event.key.toLowerCase() === "i" && state.selected) {
       event.preventDefault();
       state.locked = true;
@@ -643,7 +751,7 @@
     state.locked = true;
     event.preventDefault();
     event.stopImmediatePropagation();
-    copyText(buildSelector(state.selected), "selector");
+    copyText(selectorFor(state.selected), "selector");
   }
 
   function refreshSelection() {
